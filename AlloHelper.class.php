@@ -52,6 +52,12 @@
         protected $imagesUrl = ALLO_DEFAULT_URL_IMAGES;
 
         /**
+         * Flag pour forcer la désactivation de curl
+         * @var bool
+         */
+        protected $forceDisableCurl = false;
+
+        /**
          * Provoquer une ErrorException et/ou retourne la dernière provoquée.
          * 
          * @param string $message=null Le message de l'erreur
@@ -325,24 +331,24 @@
                 return false;
             }
             
-            if (function_exists("curl_init"))
+            $userAgent = self::getRandomUserAgent();
+            $ip = rand(0, 255).'.'.rand(0, 255).'.'.rand(0, 255).'.'.rand(0, 255);
+            $headers = array(
+                "REMOTE_ADDR: $ip",
+                "HTTP_X_FORWARDED_FOR: $ip",
+                "User-Agent: $userAgent",
+            );
+
+            if ($this->getForceDisableCurl() === false && function_exists("curl_init"))
             {
                 $curl = ($this->_cURL == null) ? curl_init() : $this->_cURL;
-                        $userAgent = self::getRandomUserAgent();
-                        $ip = rand(0, 255).'.'.rand(0, 255).'.'.rand(0, 255).'.'.rand(0, 255);
-                        
                 curl_setopt ($curl, CURLOPT_URL, $url);
                 curl_setopt ($curl, CURLOPT_CONNECTTIMEOUT, 10);
                 curl_setopt ($curl, CURLOPT_RETURNTRANSFER, true);
-                        curl_setopt ($curl, CURLOPT_USERAGENT, $userAgent);
-                        
-                        $headers[] = "REMOTE_ADDR: $ip";
-                        $headers[] = "HTTP_X_FORWARDED_FOR: $ip";
-                        
-                        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
-                        
-                        $data = curl_exec($curl);
-                        $curlError = curl_error($curl);
+                curl_setopt ($curl, CURLOPT_USERAGENT, $userAgent);
+                curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+                $data = curl_exec($curl);
+                $curlError = curl_error($curl); 
                 curl_close($curl);
                 
                 $this->lastRequest = array(
@@ -353,16 +359,32 @@
                   'rawData' => $data
                 );
             }
-            
             else
             {
-                $this->error("The extension php_curl must be installed with PHP and enabled.", 1);
-                return false;
+                if (!function_exists("file_get_contents")) {
+                    $this->error("The extension php_curl must be installed with PHP or function file_get_contents must be enabled.", 1);
+                    return false;
+                } else {
+                    $scheme = 'http://';
+                    $opts = array(
+                        'http' => array(
+                            'method' => "GET",
+                            'header' => implode("\r\n", $headers),
+                        ),
+                    );
+                    $context = stream_context_create($opts);
+                    $data = file_get_contents($scheme.$url, false, $context);
+                }
             }
             
             if (empty($data))
             {
-                $this->error("An cURL error occurred while retrieving the data: $curlError." , 2);
+                if (isset($curlError)) {
+                    $this->error("An cURL error occurred while retrieving the data: $curlError." , 2);
+                } else {
+                    $this->error("A file_get_contents error occurred while retrieving the data." , 2);
+                }
+
                 return false;
             }
             
@@ -1140,6 +1162,22 @@
         public function getImagesUrl()
         {
             return $this->imagesUrl;
+        }
+
+        /**
+         * @param boolean $forceDisableCurl
+         */
+        public function setForceDisableCurl($forceDisableCurl)
+        {
+            $this->forceDisableCurl = $forceDisableCurl;
+        }
+
+        /**
+         * @return boolean
+         */
+        public function getForceDisableCurl()
+        {
+            return $this->forceDisableCurl;
         }
 
         /**
