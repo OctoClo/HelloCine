@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>HelloCine</title>
+		<link rel="icon" type="image/x-icon" href="img/cinema.ico" />
+		<link href="css/bootstrap.min.css" rel="stylesheet">
+  </head>
+
+  <body>
+		<div class="container">
+			<div class="row">
+				<div class="col-sm-12">
+					<center><h1>HelloCine</h1></center>
+					<br>
+					<div id="urlPHP" style="display: none;"></div>
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="col-sm-2"></div>
+				<div class="col-sm-8" id="coordonnees">
+					Géolocalisation en cours...
+				</div>
+			</div>
+
+			<br>
+
+			<div class="row">
+				<div class="col-sm-2"></div>
+				<div class="col-sm-8">
+					<a href="#" onclick="return afficherFilms();" id="bouton" style="display: none;"><span class="glyphicon glyphicon-search" aria-hidden="true"></span> Rechercher</a>
+				</div>
+			</div>
+
+			<div id="resultats"></div>
+		</div>
+	</body>
+
+	<script>
+		// Tenter de récupération de la géolocalisation
+		if(navigator.geolocation)
+		  navigator.geolocation.getCurrentPosition(maPosition);
+
+		// Afficher la fin de la recherche et mettre à jour la page (construction de l'URL)
+		function maPosition(position) {
+		  document.getElementById("coordonnees").innerHTML = "Nous vous avons géolocalisé avec succès ! Vous pouvez lancer la recherche.";
+			document.getElementById("urlPHP").innerHTML = 'listeCinemas.php?latitude=' + position.coords.latitude + "&longitude=" + position.coords.longitude;
+			document.getElementById('bouton').style.display = "block";
+		}
+
+		// Lancer le script PHP avec l'URL créée précédemment
+		function afficherFilms() {
+		  getRequest (
+				document.getElementById('urlPHP').innerHTML,
+		    afficherResultat, // Gérer le résultat
+		    afficherErreur // Gérer l'erreur
+		  );
+		  return false;
+		}
+
+		// Envoyer la requête
+		function getRequest(url, success, error) {
+		    var requete = false;
+
+		    try {
+		        requete = new XMLHttpRequest();
+		    } catch (error) {
+		        return false;
+		    }
+
+		    requete.onreadystatechange = function() {
+		        if(requete.readyState == 4) {
+		            return requete.status === 200 ?
+		                success(requete.responseText) : error(requete.status);
+		        }
+		    }
+		    requete.open("GET", url, true);
+		    requete.send(null);
+		    return requete;
+		}
+
+		// Gérer l'éventuel résultat : mettre à jour la page et afficher les résultats
+		function afficherResultat(responseText) {
+		    document.getElementById('resultats').innerHTML = responseText;
+				document.getElementById('bouton').style.display = "none";
+				document.getElementById('coordonnees').style.display = "none";
+		}
+
+		// Gérer l'éventuelle erreur : l'afficher
+		function afficherErreur() {
+		    document.getElementById('resultats').innerHTML = 'Erreur durant la récupération des cinémas et des films...';
+		}
+	</script>
+
+	<script src="bootstrap/js/bootstrap.min.js"></script>
+	<script src="bootstrap/js/jquery.js"></script>
+</html>
